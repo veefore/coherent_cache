@@ -87,7 +87,6 @@ class Processor:
         elif message.type == 1:
             yield self.env.timeout(1)
             self.directory[self.write_address] = 1
-            yield self.env.timeout(1)
             self.cache.write(self.write_address)
             self.write_address = None
 
@@ -104,6 +103,7 @@ class Processor:
             yield self.env.process(self.handle_messages())
             yield self.env.timeout(1)
             if self.directory[address] == 1:
+                yield self.env.timeout(1)
                 yield self.env.process(self.cache.read(address))
             else:
                 yield self.env.process(self.mailbox.send_message(Message(2, address)))
@@ -112,6 +112,7 @@ class Processor:
                     yield self.env.timeout(1)
                     if not self.mailbox.empty():
                         yield self.env.process(self.handle_message(self.mailbox.get_message()))
+                    self.env.timeout(1)
         else:
             messages = self.mailbox.get_messages()
             yield self.env.process(self.mailbox.send_message(Message(0, address)))
@@ -152,7 +153,6 @@ class PostOffice:
 
     def get_front_message(self):
         #print('postoffice.get_front_message')
-        yield self.env.timeout(1)
         mailbox_id, msg = self.queue.pop(0)
         self.input_messages[mailbox_id].pop(0)
         #print('postoffice.get_front_message results:', mailbox_id, msg)
@@ -160,7 +160,6 @@ class PostOffice:
 
     def get_message(self, mailbox_id):
         #print('postoffice.get_message, id', mailbox_id)
-        yield self.env.timeout(1)
         return mailbox_id, self.input_messages[mailbox_id].pop(0)
 
     def send_messages(self, recipients, msg):
@@ -184,7 +183,6 @@ class DirectoryProcessor:
         self.write_address = None
         self.write_id = None # Used in handling write messages
         self.env = env
-
 
     def handle_invalidate(self, node_id, msg):
         #print('dnode.handle_invalidate, id', node_id)
@@ -229,10 +227,10 @@ class DirectoryProcessor:
                 # By doing this we also make sure that there is no read request from other node
                 # handled with invalid data.
                 if self.write_address is not None:
-                    node_id, msg = yield self.env.process(self.post_office.get_message(self.write_id))
+                    node_id, msg = self.post_office.get_message(self.write_id)
                     #print('write address not none, node_id', node_id)
                 else:
-                    node_id, msg = yield self.env.process(self.post_office.get_front_message())
+                    node_id, msg = self.post_office.get_front_message()
                     #print('write address none, node_id', node_id)
                 #print('dnode msg type', msg.type)
                 yield self.env.timeout(1)
@@ -283,6 +281,7 @@ def run(pnodes_cnt, cache_size, read_time, write_time, until):
     instructions_per_node = total_instructions / pnodes_cnt
     print('instructionx per processing node', instructions_per_node)
     return total_instructions
+
 
 if __name__ == '__main__':
     run(pnodes_cnt=15, cache_size=500, read_time=5, write_time=10, until=10000)

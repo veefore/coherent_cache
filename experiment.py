@@ -44,8 +44,8 @@ if __name__ == '__main__':
     pnodesMax = 20
     pnodes = [x + 1 for x in range(pnodesMax)]
     cache_size = 4000
-    read_time = 2
-    write_time = 5
+    read_time = 1
+    write_time = 2
     until = 1000 * 1000
     reruns = 3
 
